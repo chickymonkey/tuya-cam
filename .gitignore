@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+# Large captures / vendor binaries - kept locally only
+analysis/
+# Flash dump contains device-unique keys (FACTORY/PARAM) - never commit
+dump_original/
+*.bin
+*.ts
+*.log

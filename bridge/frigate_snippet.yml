@@ -1,0 +1,43 @@
+# Frigate (Home Assistant add-on) config snippet for the hacked Moes/Tuya battery camera.
+# Merge into your existing Frigate config - do not replace the whole file.
+#
+# 1. Copy tuya_bridge.py into the Frigate add-on config folder:
+#      Frigate add-on 0.14+ : /addon_configs/ccab4aaf_frigate/tuya_bridge.py   (= /config inside the container)
+#      (folder name can differ, e.g. ccab4aaf_frigate-fa for the "full access" variant)
+#      Older add-on        : /config/tuya_bridge.py next to frigate.yml (then use that path below)
+# 2. Camera must be awake: SD card needs bin/busybox, bin/sntp, test_shell/keepawake.sh,
+#    and an empty file "stream_mode" in the root for 24/7 operation (USB power required).
+# 3. Camera IP: set it once in environment_vars below (HA add-on), or as a container
+#    environment variable FRIGATE_TUYA_CAM_HOST (Docker). Frigate substitutes {FRIGATE_*}
+#    variables into go2rtc streams.
+
+environment_vars:
+  FRIGATE_TUYA_CAM_HOST: 192.168.1.50   # <- your camera's IP (use a DHCP reservation)
+
+go2rtc:
+  streams:
+    # One camera connection (app_media accepts only one client) carrying both video tracks:
+    #   main 2560x1440 H.265, sub 640x360 H.264 - consumers pick with ?video=h265 / ?video=h264
+    tuya_cam:
+      - "exec:python3 /config/tuya_bridge.py {FRIGATE_TUYA_CAM_HOST}#killsignal=15#killtimeout=5"
+
+cameras:
+  tuya_cam:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/tuya_cam?video=h264
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+        - path: rtsp://127.0.0.1:8554/tuya_cam?video=h265
+          input_args: preset-rtsp-restream
+          roles:
+            - record
+    detect:
+      width: 640
+      height: 360
+      fps: 5
+    live:
+      streams:
+        Sub (H.264): tuya_cam

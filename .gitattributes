@@ -1,0 +1,8 @@
+# Scripts run on the camera / in WSL: must keep LF line endings
+*.sh       text eol=lf
+*.disabled text eol=lf
+*.py       text eol=lf
+*.c        text eol=lf
+*.yml      text eol=lf
+# Camera binaries
+sdcard/bin/* binary

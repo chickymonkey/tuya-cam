@@ -1,0 +1,41 @@
+#!/bin/sh
+# Phase 1: backup + recon. Runs at every boot via /bin/check_test_shell.sh.
+# Read-only on flash: it only READS /dev/mtdblock*, never writes.
+OUT=/tmp/sdcard/dump
+mkdir -p $OUT
+exec >>$OUT/run.log 2>&1
+echo "==== boot $(date) ===="
+
+# 1. Full flash backup (only once; busybox here has no dd, so use cat)
+if [ ! -s $OUT/mtd9.bin ] || [ ! -s $OUT/full_8MB.bin ]; then
+  rm -f $OUT/full_8MB.bin
+  for i in 0 1 2 3 4 5 6 7 8 9; do
+    SRC=/dev/mtdblock$i
+    [ -e $SRC ] || SRC=/dev/mtd$i
+    cat $SRC > $OUT/mtd$i.bin || echo "FAILED reading $SRC"
+  done
+  for i in 0 1 2 3 4 5 6 7 8 9; do cat $OUT/mtd$i.bin; done > $OUT/full_8MB.tmp
+  mv $OUT/full_8MB.tmp $OUT/full_8MB.bin
+  sync
+  ls -l $OUT
+  echo "backup done (check full_8MB.bin = 8388608 bytes)"
+fi
+
+# 2. Scripts, binaries and system info (only once)
+if [ ! -d $OUT/sys ]; then
+  mkdir -p $OUT/sys
+  cp /bin/*.sh $OUT/sys/ 2>/dev/null
+  cp -r /etc $OUT/sys/etc
+  cp /bin/app_boot /bin/app_media /bin/app_watchdog /mnt/app_fast $OUT/sys/
+  ls -laR /bin /sbin /usr /mnt /etc > $OUT/sys/ls.txt
+  busybox > $OUT/sys/busybox.txt
+  cat /proc/cpuinfo /proc/meminfo /proc/cmdline /proc/mtd > $OUT/sys/proc.txt
+  ps > $OUT/sys/ps.txt
+  ifconfig > $OUT/sys/ifconfig.txt
+  netstat -an > $OUT/sys/netstat.txt
+  sync
+  echo "recon done"
+fi
+
+echo "==== end $(date) ===="
+sync
